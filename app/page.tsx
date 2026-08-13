@@ -18,21 +18,17 @@ import {
   Volume2,
 } from 'lucide-react'
 
-type Track = { title: string; artist: string; duration: string }
+type ApiTrack = { id: string; title: string; artist: string; duration: string; src: string }
 type AccessLevel = 'none' | 'limited' | 'full'
 
-const tracks: Track[] = [
-  { title: 'Midnight Bloom', artist: 'Sonder Fields', duration: '3:42' },
-  { title: 'Soft Focus', artist: 'Mira Sol', duration: '4:08' },
-  { title: 'Afterglow', artist: 'North Harbor', duration: '3:26' },
-  { title: 'Paper Moons', artist: 'The Quiet Hours', duration: '2:58' },
-  { title: 'Golden Hour', artist: 'Lumen Club', duration: '4:21' },
-  { title: 'Low Tide', artist: 'Sonder Fields', duration: '3:17' },
-  { title: 'New Places', artist: 'Mira Sol', duration: '3:53' },
-]
-
-const LIMITED_TRACK_COUNT = 3
 const SESSION_POLL_MS = 12000
+
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 export default function Page() {
   const [checking, setChecking] = useState(true)
@@ -204,12 +200,46 @@ export default function Page() {
 }
 
 function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => void }) {
-  const availableTracks = level === 'full' ? tracks : tracks.slice(0, LIMITED_TRACK_COUNT)
+  const [tracks, setTracks] = useState<ApiTrack[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [current, setCurrent] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(72)
   const [query, setQuery] = useState('')
-  const [favorites, setFavorites] = useState<number[]>([1])
+  const [favorites, setFavorites] = useState<number[]>([])
 
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const refetchingRef = useRef(false)
+
+  // Load (and refresh) signed track URLs from the gated API.
+  const loadTracks = useCallback(async () => {
+    const response = await fetch('/api/tracks', { cache: 'no-store' })
+    if (response.status === 401) {
+      onRevoked()
+      return null
+    }
+    const data = await response.json()
+    if (!response.ok || !data.ok) {
+      setLoadError(data.error ?? 'Could not load your library.')
+      setLoading(false)
+      return null
+    }
+    setTracks(data.tracks)
+    setTotal(data.total ?? data.tracks.length)
+    setLoadError('')
+    setLoading(false)
+    return data.tracks as ApiTrack[]
+  }, [onRevoked])
+
+  useEffect(() => {
+    loadTracks()
+  }, [loadTracks])
+
+  // Session revocation polling (kept from the original).
   useEffect(() => {
     async function poll() {
       const response = await fetch('/api/access/session', { cache: 'no-store' })
@@ -220,20 +250,91 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
     return () => clearInterval(interval)
   }, [onRevoked])
 
-  const filtered = useMemo(
-    () => availableTracks.filter((track) => `${track.title} ${track.artist}`.toLowerCase().includes(query.toLowerCase())),
-    [query, availableTracks]
+  const track = tracks[current]
+
+  // Keep the <audio> element's play/pause state in sync with React state.
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !track) return
+    if (playing) {
+      audio.play().catch(() => setPlaying(false))
+    } else {
+      audio.pause()
+    }
+  }, [playing, current, track])
+
+  // Apply volume changes to the element.
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume / 100
+  }, [volume, current])
+
+  const goTo = useCallback(
+    (index: number) => {
+      if (tracks.length === 0) return
+      const next = (index + tracks.length) % tracks.length
+      setCurrent(next)
+      setCurrentTime(0)
+      setDuration(0)
+    },
+    [tracks.length]
   )
-  const track = availableTracks[current] ?? availableTracks[0]
+
+  const handleEnded = useCallback(() => {
+    if (tracks.length === 0) return
+    goTo(current + 1)
+    setPlaying(true)
+  }, [current, goTo, tracks.length])
+
+  // A signed URL may have expired between load and playback — refetch once and retry.
+  const handleAudioError = useCallback(async () => {
+    if (refetchingRef.current) return
+    refetchingRef.current = true
+    const fresh = await loadTracks()
+    refetchingRef.current = false
+    if (fresh && fresh[current] && audioRef.current) {
+      audioRef.current.load()
+      if (playing) audioRef.current.play().catch(() => setPlaying(false))
+    }
+  }, [current, loadTracks, playing])
+
+  function handleSeek(event: React.ChangeEvent<HTMLInputElement>) {
+    const value = Number(event.target.value)
+    if (audioRef.current && duration > 0) {
+      audioRef.current.currentTime = (value / 100) * duration
+      setCurrentTime(audioRef.current.currentTime)
+    }
+  }
 
   function toggleFavorite(index: number) {
     setFavorites((items) => (items.includes(index) ? items.filter((item) => item !== index) : [...items, index]))
   }
 
+  const filtered = useMemo(
+    () => tracks.filter((t) => `${t.title} ${t.artist}`.toLowerCase().includes(query.toLowerCase())),
+    [query, tracks]
+  )
+
+  const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+
   return (
     <main className="music-app">
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
+
+      {track && (
+        <audio
+          ref={audioRef}
+          src={track.src}
+          preload="metadata"
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onEnded={handleEnded}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onError={handleAudioError}
+        />
+      )}
+
       <header className="topbar">
         <div className="brand-mark"><span>O</span><span>R</span></div>
         <div className="brand-copy"><strong>ORBITAL</strong><small>personal listening room</small></div>
@@ -242,28 +343,56 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
         )}
         <button className="profile" aria-label="Open profile" style={level === 'limited' ? undefined : { marginLeft: 'auto' }}>JS</button>
       </header>
+
       <div className="layout">
         <section className="player-pane" aria-label="Now playing">
           <div className="eyebrow"><span className="live-dot" /> NOW PLAYING</div>
           <div className={`album-art ${playing ? 'is-playing' : ''}`} aria-label="Abstract album artwork"><div className="art-orbit orbit-a" /><div className="art-orbit orbit-b" /><div className="art-sun" /><div className="art-line" /></div>
-          <div className="now-meta"><h1>{track.title}</h1><p>{track.artist}</p></div>
-          <div className="progress-row"><span>1:24</span><input aria-label="Track progress" type="range" min="0" max="100" defaultValue="38" /><span>{track.duration}</span></div>
-          <div className="controls">
-            <button aria-label="Previous track" onClick={() => setCurrent((current - 1 + availableTracks.length) % availableTracks.length)}><SkipBack /></button>
-            <button className="play-button" aria-label={playing ? 'Pause' : 'Play'} onClick={() => setPlaying(!playing)}>{playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button>
-            <button aria-label="Next track" onClick={() => setCurrent((current + 1) % availableTracks.length)}><SkipForward /></button>
+          <div className="now-meta">
+            <h1>{loading ? 'Loading…' : track ? track.title : 'Nothing to play'}</h1>
+            <p>{track ? track.artist : loadError || (loading ? 'Fetching your library' : 'No tracks available')}</p>
           </div>
-          <div className="volume"><Volume2 size={16} /><input aria-label="Volume" type="range" min="0" max="100" defaultValue="72" /></div>
+          <div className="progress-row">
+            <span>{formatTime(currentTime)}</span>
+            <input
+              aria-label="Track progress"
+              type="range"
+              min="0"
+              max="100"
+              value={progressPct}
+              onChange={handleSeek}
+              disabled={!track}
+            />
+            <span>{duration > 0 ? formatTime(duration) : track ? track.duration : '0:00'}</span>
+          </div>
+          <div className="controls">
+            <button aria-label="Previous track" onClick={() => goTo(current - 1)} disabled={!track}><SkipBack /></button>
+            <button className="play-button" aria-label={playing ? 'Pause' : 'Play'} onClick={() => setPlaying((p) => !p)} disabled={!track}>{playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button>
+            <button aria-label="Next track" onClick={() => goTo(current + 1)} disabled={!track}><SkipForward /></button>
+          </div>
+          <div className="volume"><Volume2 size={16} /><input aria-label="Volume" type="range" min="0" max="100" value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></div>
         </section>
+
         <aside className="playlist-pane">
           <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>Evening rotation</h2></div><ListMusic size={20} /></div>
           <label className="search-wrap"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your library" aria-label="Search your library" /></label>
           <div className="playlist-scroll" aria-label="Playlist tracks">
             <div className="track-list">
-              {filtered.map((item) => { const index = availableTracks.indexOf(item); return <div className={`track ${index === current ? 'active' : ''}`} key={item.title} onClick={() => { setCurrent(index); setPlaying(true) }} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && setCurrent(index)}><span className="track-num">{String(index + 1).padStart(2, '0')}</span><span className="eq" aria-hidden="true"><i /><i /><i /></span><div className="track-info"><strong>{item.title}</strong><small>{item.artist}</small></div><span className="duration">{item.duration}</span><button className="fav" aria-label={`Favorite ${item.title}`} onClick={(event) => { event.stopPropagation(); toggleFavorite(index) }}><Heart size={16} fill={favorites.includes(index) ? 'currentColor' : 'none'} /></button></div> })}
+              {filtered.map((item) => {
+                const index = tracks.indexOf(item)
+                return (
+                  <div className={`track ${index === current ? 'active' : ''}`} key={item.id} onClick={() => { goTo(index); setPlaying(true) }} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') { goTo(index); setPlaying(true) } }}>
+                    <span className="track-num">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="eq" aria-hidden="true"><i /><i /><i /></span>
+                    <div className="track-info"><strong>{item.title}</strong><small>{item.artist}</small></div>
+                    <span className="duration">{item.duration}</span>
+                    <button className="fav" aria-label={`Favorite ${item.title}`} onClick={(event) => { event.stopPropagation(); toggleFavorite(index) }}><Heart size={16} fill={favorites.includes(index) ? 'currentColor' : 'none'} /></button>
+                  </div>
+                )
+              })}
             </div>
           </div>
-          <footer className="playlist-footer"><span>{availableTracks.length} tracks{level === 'limited' ? ` of ${tracks.length}` : ''}</span><span><span className="gold-dot" /> curated for you</span></footer>
+          <footer className="playlist-footer"><span>{tracks.length} tracks{level === 'limited' ? ` of ${total}` : ''}</span><span><span className="gold-dot" /> curated for you</span></footer>
         </aside>
       </div>
     </main>
