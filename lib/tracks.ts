@@ -14,7 +14,7 @@ export const TRACKS: TrackManifestEntry[] = [
     title: 'OLD TOWN ROAD',
     artist: 'HELIX MUSIC',
     duration: '2:37',
-    path: 'music/Lil Nas X - Old Town Road (Official Video) ft. Billy Ray Cyrus - LilNasXVEVO.mp',
+    path: 'music/Lil Nas X - Old Town Road (Official Video) ft. Billy Ray Cyrus - LilNasXVEVO.mp3',
   },
   {
     id: 'BAD BOY',
