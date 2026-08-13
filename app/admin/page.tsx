@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { verifyToken, AdminPayload, ADMIN_COOKIE } from '@/lib/session'
 import AdminDashboard from '@/components/admin-dashboard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
   const cookieStore = await cookies()
   const token = cookieStore.get(ADMIN_COOKIE)?.value
