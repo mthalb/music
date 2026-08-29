@@ -17,6 +17,7 @@ import {
   SkipForward,
   Volume2,
 } from 'lucide-react'
+import { DiscoverPanel } from '@/components/discover-panel'
 
 type ApiTrack = { id: string; title: string; artist: string; duration: string; src: string }
 type AccessLevel = 'none' | 'limited' | 'full'
@@ -395,6 +396,8 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
           <footer className="playlist-footer"><span>{tracks.length} tracks{level === 'limited' ? ` of ${total}` : ''}</span><span><span className="gold-dot" /> curated for you</span></footer>
         </aside>
       </div>
+
+      <DiscoverPanel />
     </main>
   )
 }
