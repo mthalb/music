@@ -22,6 +22,20 @@ export function generateKeyValue() {
   return `orb_${randomBytes(18).toString('base64url')}`
 }
 
+const DISCOVER_ENABLED_KEY = 'settings:discover_enabled'
+ 
+export async function getDiscoverEnabled(): Promise<boolean> {
+  const value = await redis.get<string | number | boolean>(DISCOVER_ENABLED_KEY)
+  return value === true || value === 'true' || value === 1 || value === '1'
+}
+ 
+export async function setDiscoverEnabled(enabled: boolean): Promise<boolean> {
+  await redis.set(DISCOVER_ENABLED_KEY, enabled)
+  return enabled
+}
+
+
+
 function serialize(key: AccessKey): Record<string, string> {
   return {
     id: key.id,
