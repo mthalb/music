@@ -1,0 +1,93 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Search, Play, Pause, Loader2, Radio } from 'lucide-react'
+
+type DiscoverTrack = { id: string; title: string; artist: string; duration: string; src: string }
+
+export function DiscoverPanel() {
+  const [enabled, setEnabled] = useState<boolean | null>(null) // null = still checking
+  const [query, setQuery] = useState('')
+  const [tracks, setTracks] = useState<DiscoverTrack[]>([])
+  const [loading, setLoading] = useState(false)
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  // Probe once on mount to see if Discover is turned on; hide entirely if not.
+  useEffect(() => {
+    fetch('/api/discover')
+      .then((res) => {
+        if (res.status === 403) {
+          setEnabled(false)
+          return null
+        }
+        setEnabled(true)
+        return res.json()
+      })
+      .then((data) => {
+        if (data?.ok) setTracks(data.tracks)
+      })
+  }, [])
+
+  async function search(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    const res = await fetch(`/api/discover?q=${encodeURIComponent(query)}`)
+    if (res.status === 403) {
+      setEnabled(false)
+      setLoading(false)
+      return
+    }
+    const data = await res.json()
+    setTracks(data.ok ? data.tracks : [])
+    setLoading(false)
+  }
+
+  function togglePlay(track: DiscoverTrack) {
+    const audio = audioRef.current
+    if (!audio) return
+    if (playingId === track.id) {
+      audio.pause()
+      setPlayingId(null)
+    } else {
+      audio.src = track.src
+      audio.play()
+      setPlayingId(track.id)
+    }
+  }
+
+  if (enabled === false) return null // Discover is off — render nothing
+
+  return (
+    <section className="discover-panel">
+      <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
+      <div className="discover-heading">
+        <Radio size={16} />
+        <h2>Discover (free internet music)</h2>
+      </div>
+      <form onSubmit={search} className="search-wrap">
+        <Search size={16} />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search Jamendo"
+        />
+      </form>
+      {loading && <Loader2 className="animate-spin" size={16} />}
+      <div className="track-list">
+        {tracks.map((t) => (
+          <div className="track" key={t.id} onClick={() => togglePlay(t)} role="button" tabIndex={0}>
+            <button aria-label="play">
+              {playingId === t.id ? <Pause size={16} /> : <Play size={16} />}
+            </button>
+            <div className="track-info">
+              <strong>{t.title}</strong>
+              <small>{t.artist}</small>
+            </div>
+            <span className="duration">{t.duration}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
