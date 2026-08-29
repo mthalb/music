@@ -36,6 +36,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     tracks,
-    debug: { requestedUrl: url.toString().replace(clientId, 'HIDDEN'), resultsCount: data.results?.length ?? 0, jamendoStatus: data.headers?.status },
+    debug: {
+      requestedUrl: url.toString(),
+      resultsCount: data.results?.length ?? 0,
+      jamendoStatus: data.headers?.status,
+      jamendoErrorMessage: data.headers?.error_message,
+      clientIdRaw: clientId,
+      clientIdLength: clientId.length,
+      clientIdCharCodes: Array.from(clientId).map((c) => c.charCodeAt(0)),
+    },
   })
 }
