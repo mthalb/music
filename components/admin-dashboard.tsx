@@ -9,7 +9,9 @@ import {
   Copy,
   KeyRound,
   LogOut,
+  Music,
   Plus,
+  Radio,
   Save,
   ShieldCheck,
   Sparkles,
@@ -28,6 +30,14 @@ type AccessKey = {
   expires_at: string | null
   created_at: string
   last_used_at: string | null
+}
+
+type PlaylistTrack = {
+  id: string
+  title: string
+  artist: string
+  duration: string
+  path: string
 }
 
 function statusOf(key: AccessKey): { label: string; tone: 'live' | 'off' | 'expired' } {
@@ -56,6 +66,16 @@ export default function AdminDashboard() {
   const [requestCooldownSeconds, setRequestCooldownSeconds] = useState('20')
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
+  const [tracks, setTracks] = useState<PlaylistTrack[]>([])
+  const [tracksLoading, setTracksLoading] = useState(true)
+  const [addingTrack, setAddingTrack] = useState(false)
+  const [trackTitle, setTrackTitle] = useState('')
+  const [trackArtist, setTrackArtist] = useState('')
+  const [trackDuration, setTrackDuration] = useState('')
+  const [trackPath, setTrackPath] = useState('')
+  const [trackError, setTrackError] = useState('')
+  const [discoverEnabled, setDiscoverEnabled] = useState(false)
+  const [savingDiscover, setSavingDiscover] = useState(false)
 
   async function loadKeys() {
     try {
@@ -82,11 +102,62 @@ export default function AdminDashboard() {
     if (typeof data.request_key_ttl_minutes === 'number') setRequestTtlMinutes(String(data.request_key_ttl_minutes))
     if (typeof data.request_key_cooldown_seconds === 'number')
       setRequestCooldownSeconds(String(data.request_key_cooldown_seconds))
+    if (typeof data.discover_enabled === 'boolean') setDiscoverEnabled(data.discover_enabled)
+  }
+
+  async function loadTracks() {
+    setTracksLoading(true)
+    const response = await fetch('/api/admin/playlist', { cache: 'no-store' })
+    if (response.ok) {
+      const data = await response.json()
+      setTracks(data.tracks ?? [])
+    }
+    setTracksLoading(false)
+  }
+
+  async function handleAddTrack(event: React.FormEvent) {
+    event.preventDefault()
+    setTrackError('')
+    setAddingTrack(true)
+    const response = await fetch('/api/admin/playlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: trackTitle, artist: trackArtist, duration: trackDuration, path: trackPath }),
+    })
+    const data = await response.json()
+    setAddingTrack(false)
+    if (!response.ok) {
+      setTrackError(data.error ?? 'Could not add track.')
+      return
+    }
+    setTrackTitle('')
+    setTrackArtist('')
+    setTrackDuration('')
+    setTrackPath('')
+    loadTracks()
+  }
+
+  async function removeTrack(id: string) {
+    setTracks((current) => current.filter((t) => t.id !== id))
+    await fetch(`/api/admin/playlist/${id}`, { method: 'DELETE' })
+  }
+
+  async function toggleDiscover() {
+    const next = !discoverEnabled
+    setSavingDiscover(true)
+    setDiscoverEnabled(next)
+    await fetch('/api/admin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ discover_enabled: next }),
+    })
+    setSavingDiscover(false)
   }
 
   useEffect(() => {
     loadKeys()
     loadSettings()
+    loadTracks()
   }, [])
 
   async function handleSaveSettings(event: React.FormEvent) {
@@ -312,6 +383,76 @@ export default function AdminDashboard() {
                 </div>
               )
             })}
+          </div>
+        )}
+      </section>
+
+      <section className="admin-panel admin-create">
+        <h2><Radio size={16} /> Free internet music (Discover)</h2>
+        <p className="admin-settings-hint">
+          When on, visitors see a separate search panel powered by Jamendo. It never adds tracks to your playlist below.
+        </p>
+        <button
+          className={`admin-toggle ${discoverEnabled ? 'is-on' : ''}`}
+          onClick={toggleDiscover}
+          disabled={savingDiscover}
+        >
+          {discoverEnabled ? <Unlock size={14} /> : <Ban size={14} />}
+          {discoverEnabled ? 'Enabled' : 'Disabled'}
+        </button>
+      </section>
+
+      <section className="admin-panel admin-create">
+        <h2><Music size={16} /> Add a track to the playlist</h2>
+        <p className="admin-settings-hint">
+          Upload the audio file to your B2 bucket first, then add its details and object key here.
+        </p>
+        <form onSubmit={handleAddTrack} className="admin-create-form">
+          <label>
+            <span>Title</span>
+            <input value={trackTitle} onChange={(e) => setTrackTitle(e.target.value)} placeholder="Track title" />
+          </label>
+          <label>
+            <span>Artist</span>
+            <input value={trackArtist} onChange={(e) => setTrackArtist(e.target.value)} placeholder="Artist name" />
+          </label>
+          <label>
+            <span>Duration</span>
+            <input value={trackDuration} onChange={(e) => setTrackDuration(e.target.value)} placeholder="e.g. 3:05" />
+          </label>
+          <label>
+            <span>B2 object key</span>
+            <input value={trackPath} onChange={(e) => setTrackPath(e.target.value)} placeholder="music/song.mp3" />
+          </label>
+          {trackError && <p className="access-gate-error">{trackError}</p>}
+          <button type="submit" disabled={addingTrack}>
+            <Plus size={15} /> {addingTrack ? 'Adding…' : 'Add track'}
+          </button>
+        </form>
+
+        {tracksLoading ? (
+          <div className="admin-empty">Loading playlist…</div>
+        ) : tracks.length === 0 ? (
+          <div className="admin-empty">No tracks yet. Add one above.</div>
+        ) : (
+          <div className="admin-key-list">
+            {tracks.map((track) => (
+              <div className="admin-key-card" key={track.id}>
+                <div className="admin-key-top">
+                  <div>
+                    <strong>{track.title}</strong>
+                    <div className="admin-badge admin-badge-live"><span className="admin-badge-dot" /> {track.artist}</div>
+                  </div>
+                  <button className="admin-icon-btn" onClick={() => removeTrack(track.id)} aria-label="Delete track">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                <div className="admin-key-meta">
+                  <span>Duration: {track.duration}</span>
+                  <span>Path: {track.path}</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>
