@@ -345,8 +345,6 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
         <button className="profile" aria-label="Open profile" style={level === 'limited' ? undefined : { marginLeft: 'auto' }}>JS</button>
       </header>
 
-      <DiscoverPanel />
-
       <div className="layout">
         <section className="player-pane" aria-label="Now playing">
           <div className="eyebrow"><span className="live-dot" /> NOW PLAYING</div>
@@ -376,28 +374,33 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
           <div className="volume"><Volume2 size={16} /><input aria-label="Volume" type="range" min="0" max="100" value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></div>
         </section>
 
-        <aside className="playlist-pane">
-          <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>Evening rotation</h2></div><ListMusic size={20} /></div>
-          <label className="search-wrap"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your library" aria-label="Search your library" /></label>
-          <div className="playlist-scroll" aria-label="Playlist tracks">
-            <div className="track-list">
-              {filtered.map((item) => {
-                const index = tracks.indexOf(item)
-                return (
-                  <div className={`track ${index === current ? 'active' : ''}`} key={item.id} onClick={() => { goTo(index); setPlaying(true) }} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') { goTo(index); setPlaying(true) } }}>
-                    <span className="track-num">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="eq" aria-hidden="true"><i /><i /><i /></span>
-                    <div className="track-info"><strong>{item.title}</strong><small>{item.artist}</small></div>
-                    <span className="duration">{item.duration}</span>
-                    <button className="fav" aria-label={`Favorite ${item.title}`} onClick={(event) => { event.stopPropagation(); toggleFavorite(index) }}><Heart size={16} fill={favorites.includes(index) ? 'currentColor' : 'none'} /></button>
-                  </div>
-                )
-              })}
+        <div className="playlist-column">
+          <DiscoverPanel />
+
+          <aside className="playlist-pane">
+            <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>Evening rotation</h2></div><ListMusic size={20} /></div>
+            <label className="search-wrap"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your library" aria-label="Search your library" /></label>
+            <div className="playlist-scroll" aria-label="Playlist tracks">
+              <div className="track-list">
+                {filtered.map((item) => {
+                  const index = tracks.indexOf(item)
+                  return (
+                    <div className={`track ${index === current ? 'active' : ''}`} key={item.id} onClick={() => { goTo(index); setPlaying(true) }} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') { goTo(index); setPlaying(true) } }}>
+                      <span className="track-num">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="eq" aria-hidden="true"><i /><i /><i /></span>
+                      <div className="track-info"><strong>{item.title}</strong><small>{item.artist}</small></div>
+                      <span className="duration">{item.duration}</span>
+                      <button className="fav" aria-label={`Favorite ${item.title}`} onClick={(event) => { event.stopPropagation(); toggleFavorite(index) }}><Heart size={16} fill={favorites.includes(index) ? 'currentColor' : 'none'} /></button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-          <footer className="playlist-footer"><span>{tracks.length} tracks{level === 'limited' ? ` of ${total}` : ''}</span><span><span className="gold-dot" /> curated for you</span></footer>
-        </aside>
+            <footer className="playlist-footer"><span>{tracks.length} tracks{level === 'limited' ? ` of ${total}` : ''}</span><span><span className="gold-dot" /> curated for you</span></footer>
+          </aside>
+        </div>
       </div>
     </main>
   )
 }
+        
