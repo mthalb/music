@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   url.searchParams.set('client_id', clientId)
   url.searchParams.set('format', 'json')
   url.searchParams.set('limit', '20')
-  if (q) url.searchParams.set('search', q)
+  if (q) url.searchParams.set('namesearch', q)
 
   const res = await fetch(url.toString())
   const data = await res.json()
