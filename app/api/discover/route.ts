@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   url.searchParams.set('limit', '20')
   if (q) url.searchParams.set('namesearch', q)
 
-  const res = await fetch(url.toString())
+  const res = await fetch(url.toString(), { cache: 'no-store' })
   const data = await res.json()
 
   const tracks = (data.results ?? []).map((t: any) => ({
@@ -33,5 +33,9 @@ export async function GET(req: NextRequest) {
     src: t.audio,
   }))
 
-  return NextResponse.json({ ok: true, tracks })
+  return NextResponse.json({
+    ok: true,
+    tracks,
+    debug: { requestedUrl: url.toString().replace(clientId, 'HIDDEN'), resultsCount: data.results?.length ?? 0, jamendoStatus: data.headers?.status },
+  })
 }
