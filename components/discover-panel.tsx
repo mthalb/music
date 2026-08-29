@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, Play, Pause, Loader2, Radio } from 'lucide-react'
+import { Search, Play, Pause, Radio } from 'lucide-react'
 
 type DiscoverTrack = { id: string; title: string; artist: string; duration: string; src: string }
 
@@ -59,11 +59,14 @@ export function DiscoverPanel() {
   if (enabled === false) return null // Discover is off — render nothing
 
   return (
-    <section className="discover-panel">
+    <section className="playlist-pane discover-pane">
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
-      <div className="discover-heading">
-        <Radio size={16} />
-        <h2>Discover (free internet music)</h2>
+      <div className="playlist-heading">
+        <div>
+          <p className="eyebrow">FREE INTERNET MUSIC</p>
+          <h2>Discover</h2>
+        </div>
+        <Radio size={20} />
       </div>
       <form onSubmit={search} className="search-wrap">
         <Search size={16} />
@@ -73,20 +76,23 @@ export function DiscoverPanel() {
           placeholder="Search Jamendo"
         />
       </form>
-      {loading && <Loader2 className="animate-spin" size={16} />}
-      <div className="track-list">
-        {tracks.map((t) => (
-          <div className="track" key={t.id} onClick={() => togglePlay(t)} role="button" tabIndex={0}>
-            <button aria-label="play">
-              {playingId === t.id ? <Pause size={16} /> : <Play size={16} />}
-            </button>
-            <div className="track-info">
-              <strong>{t.title}</strong>
-              <small>{t.artist}</small>
-            </div>
-            <span className="duration">{t.duration}</span>
-          </div>
-        ))}
+      <div className="playlist-scroll" aria-label="Discover results">
+        <div className="track-list">
+          {loading && <div className="admin-empty">Searching…</div>}
+          {!loading &&
+            tracks.map((t) => (
+              <div className="track" key={t.id} onClick={() => togglePlay(t)} role="button" tabIndex={0}>
+                <button aria-label="play">
+                  {playingId === t.id ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <div className="track-info">
+                  <strong>{t.title}</strong>
+                  <small>{t.artist}</small>
+                </div>
+                <span className="duration">{t.duration}</span>
+              </div>
+            ))}
+        </div>
       </div>
     </section>
   )
