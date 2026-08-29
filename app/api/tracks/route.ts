@@ -10,9 +10,10 @@ import {
   type VisitorPayload,
   VISITOR_COOKIE,
 } from '@/lib/session'
-import { tracksForLevel } from '@/lib/tracks'
+import { listPlaylistTracks } from '@/lib/playlist'
 
 const SIGNED_URL_TTL_MS = 15 * 60 * 1000
+const LIMITED_TRACK_COUNT = 3 // keep in sync with your old lib/tracks.ts value
 
 export async function GET() {
   const cookieStore = await cookies()
@@ -41,7 +42,8 @@ export async function GET() {
     )
   }
 
-  const manifest = tracksForLevel(key.access_level)
+  const all = await listPlaylistTracks()
+  const manifest = key.access_level === 'full' ? all : all.slice(0, LIMITED_TRACK_COUNT)
 
   try {
     const tracks = await Promise.all(
@@ -61,7 +63,7 @@ export async function GET() {
       {
         ok: true,
         level: key.access_level,
-        total: manifest.length,
+        total: all.length,
         tracks,
       },
       {
