@@ -345,6 +345,8 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
         <button className="profile" aria-label="Open profile" style={level === 'limited' ? undefined : { marginLeft: 'auto' }}>JS</button>
       </header>
 
+      <DiscoverPanel />
+
       <div className="layout">
         <section className="player-pane" aria-label="Now playing">
           <div className="eyebrow"><span className="live-dot" /> NOW PLAYING</div>
@@ -396,8 +398,6 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
           <footer className="playlist-footer"><span>{tracks.length} tracks{level === 'limited' ? ` of ${total}` : ''}</span><span><span className="gold-dot" /> curated for you</span></footer>
         </aside>
       </div>
-
-      <DiscoverPanel />
     </main>
   )
 }
