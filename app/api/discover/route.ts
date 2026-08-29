@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDiscoverEnabled } from '@/lib/access-keys'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   if (!(await getDiscoverEnabled())) {
     return NextResponse.json({ ok: false, error: 'Discover is turned off.' }, { status: 403 })
