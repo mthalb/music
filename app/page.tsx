@@ -161,6 +161,7 @@ export default function Page() {
           <div className="access-gate-icon"><Lock size={20} /></div>
           <h1>Orbital is locked</h1>
           <p>This listening room requires an access key. Ask the owner for one, or use the admin dashboard to issue keys.</p>
+          <p className="access-gate-contact"><strong>For unlimited access, API key, contact HELIX TANVIR.</strong></p>
           <label className="access-gate-field">
             <KeyRound size={16} />
             <input
