@@ -9,41 +9,37 @@ export async function GET(req: NextRequest) {
   }
 
   const q = req.nextUrl.searchParams.get('q') ?? ''
-  const clientId = process.env.JAMENDO_CLIENT_ID
-  if (!clientId) {
-    return NextResponse.json({ ok: false, error: 'Jamendo not configured' }, { status: 500 })
+  if (!q) {
+    return NextResponse.json({ ok: true, tracks: [] })
   }
 
-  const url = new URL('https://api.jamendo.com/v3.0/tracks/')
-  url.searchParams.set('client_id', clientId)
-  url.searchParams.set('format', 'json')
-  url.searchParams.set('limit', '20')
-  if (q) url.searchParams.set('namesearch', q)
+  const url = new URL('https://helixsong.vercel.app/api/scdlv2')
+  url.searchParams.set('query', q)
 
   const res = await fetch(url.toString(), { cache: 'no-store' })
+
+  if (res.status === 404) {
+    return NextResponse.json({ ok: true, tracks: [] })
+  }
+  if (!res.ok) {
+    return NextResponse.json({ ok: false, error: 'Search failed. Try again shortly.' }, { status: 502 })
+  }
+
   const data = await res.json()
+  if (!data.status || !data.result) {
+    return NextResponse.json({ ok: true, tracks: [] })
+  }
 
-  const tracks = (data.results ?? []).map((t: any) => ({
-    id: `jamendo-${t.id}`,
-    title: t.name,
-    artist: t.artist_name,
-    duration: t.duration
-      ? `${Math.floor(t.duration / 60)}:${String(t.duration % 60).padStart(2, '0')}`
-      : '0:00',
-    src: t.audio,
-  }))
+  const r = data.result
+  const totalSeconds = Math.round((r.duration ?? 0) / 1000)
+  const track = {
+    id: `helix-${encodeURIComponent(r.download_url)}`,
+    title: r.title,
+    artist: r.artist,
+    duration: `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`,
+    src: r.download_url,
+    thumbnail: r.thumbnail ?? null,
+  }
 
-  return NextResponse.json({
-    ok: true,
-    tracks,
-    debug: {
-      requestedUrl: url.toString(),
-      resultsCount: data.results?.length ?? 0,
-      jamendoStatus: data.headers?.status,
-      jamendoErrorMessage: data.headers?.error_message,
-      clientIdRaw: clientId,
-      clientIdLength: clientId.length,
-      clientIdCharCodes: Array.from(clientId).map((c) => c.charCodeAt(0)),
-    },
-  })
+  return NextResponse.json({ ok: true, tracks: [track] })
 }
