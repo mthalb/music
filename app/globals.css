@@ -35,6 +35,8 @@ button { cursor: pointer; }
 .access-gate-field input { border: 0; outline: 0; background: transparent; color: var(--foreground); width: 100%; font-size: 13px; letter-spacing: .02em; }
 .access-gate-error { color: var(--danger); font-size: 12px; margin: -4px 0 0; }
 .access-gate-contact { color: var(--gold) !important; font-size: 13px !important; font-weight: 700 !important; letter-spacing: .01em; }
+.access-reveal { animation: gate-rise .4s ease both; }
+.access-request-inline { margin-top: 4px; width: 100%; }
 .access-gate-card button[type='submit'] { border: 0; border-radius: 12px; padding: 12px; background: var(--gold); color: #171312; font-weight: 600; font-size: 13px; letter-spacing: .02em; transition: transform .2s ease, opacity .2s ease; }
 .access-gate-card button[type='submit']:hover:not(:disabled) { transform: translateY(-1px); }
 .access-gate-card button[type='submit']:disabled { opacity: .5; cursor: not-allowed; }
