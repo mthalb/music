@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Clock,
   Heart,
   KeyRound,
   ListMusic,
@@ -162,6 +161,7 @@ export default function Page() {
           <h1>Orbital is locked</h1>
           <p>This listening room requires an access key. Ask the owner for one, or use the admin dashboard to issue keys.</p>
           <p className="access-gate-contact"><strong>For unlimited access, API key, contact HELIX TANVIR.</strong></p>
+          {requestInfo && <p className="access-request-info access-reveal">{requestInfo}</p>}
           <label className="access-gate-field">
             <KeyRound size={16} />
             <input
@@ -175,25 +175,16 @@ export default function Page() {
           <button type="submit" disabled={unlocking || !keyInput.trim()}>
             {unlocking ? 'Checking…' : 'Unlock'}
           </button>
-        </form>
-
-        <div className="access-request-card">
-          <div className="access-request-heading">
-            <Clock size={14} />
-            <span>Don&apos;t have a key?</span>
-          </div>
-          <p>Request a temporary access key. It&apos;ll be filled in above automatically.</p>
-          {requestInfo && <p className="access-request-info">{requestInfo}</p>}
-          {requestError && <p className="access-gate-error">{requestError}</p>}
           <button
             type="button"
-            className="access-request-button"
+            className="access-request-button access-request-inline"
             onClick={handleRequestKey}
             disabled={requesting}
           >
             <Sparkles size={14} /> {requesting ? 'Generating…' : 'Request a key'}
           </button>
-        </div>
+          {requestError && <p className="access-gate-error">{requestError}</p>}
+        </form>
       </main>
     )
   }
