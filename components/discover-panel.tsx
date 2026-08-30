@@ -10,28 +10,25 @@ export function DiscoverPanel() {
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState<DiscoverTrack[]>([])
   const [loading, setLoading] = useState(false)
+  const [notFound, setNotFound] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
 
   // Probe once on mount to see if Discover is turned on; hide entirely if not.
+  // (No query yet, so this just checks the on/off state — it won't hit HELIX.)
   useEffect(() => {
     fetch('/api/discover')
       .then((res) => {
-        if (res.status === 403) {
-          setEnabled(false)
-          return null
-        }
-        setEnabled(true)
-        return res.json()
+        setEnabled(res.status !== 403)
       })
-      .then((data) => {
-        if (data?.ok) setTracks(data.tracks)
-      })
+      .catch(() => setEnabled(true))
   }, [])
 
   async function search(e: React.FormEvent) {
     e.preventDefault()
+    if (!query.trim()) return
     setLoading(true)
+    setNotFound(false)
     const res = await fetch(`/api/discover?q=${encodeURIComponent(query)}`)
     if (res.status === 403) {
       setEnabled(false)
@@ -39,7 +36,9 @@ export function DiscoverPanel() {
       return
     }
     const data = await res.json()
-    setTracks(data.ok ? data.tracks : [])
+    const results = data.ok ? data.tracks : []
+    setTracks(results)
+    setNotFound(data.ok && results.length === 0)
     setLoading(false)
   }
 
@@ -73,12 +72,13 @@ export function DiscoverPanel() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search Jamendo"
+          placeholder="Search any song name"
         />
       </form>
       <div className="playlist-scroll" aria-label="Discover results">
         <div className="track-list">
           {loading && <div className="admin-empty">Searching…</div>}
+          {!loading && notFound && <div className="admin-empty">No match found. Try a different title.</div>}
           {!loading &&
             tracks.map((t) => (
               <div className="track" key={t.id} onClick={() => togglePlay(t)} role="button" tabIndex={0}>
