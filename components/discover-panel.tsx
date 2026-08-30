@@ -62,8 +62,8 @@ export function DiscoverPanel() {
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
       <div className="playlist-heading">
         <div>
-          <p className="eyebrow">FREE INTERNET MUSIC</p>
-          <h2>Discover</h2>
+          <p className="eyebrow">ONLINE HELIX MUSIC</p>
+          <h2>DISCOVER HERE</h2>
         </div>
         <Radio size={20} />
       </div>
