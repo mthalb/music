@@ -338,7 +338,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
 
       <header className="topbar">
         <div className="brand-mark"><span>O</span><span>R</span></div>
-        <div className="brand-copy"><strong>ORBITAL</strong><small>personal listening room</small></div>
+        <div className="brand-copy"><strong>HELIX</strong><small>listening room</small></div>
         {level === 'limited' && (
           <span className="limited-banner"><ShieldAlert size={12} /> Limited access</span>
         )}
@@ -378,7 +378,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
           <DiscoverPanel />
 
           <aside className="playlist-pane">
-            <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>Evening rotation</h2></div><ListMusic size={20} /></div>
+            <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>HELIX Rotation</h2></div><ListMusic size={20} /></div>
             <label className="search-wrap"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your library" aria-label="Search your library" /></label>
             <div className="playlist-scroll" aria-label="Playlist tracks">
               <div className="track-list">
