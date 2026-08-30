@@ -1,21 +1,24 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, Play, Pause, Radio } from 'lucide-react'
 
-type DiscoverTrack = { id: string; title: string; artist: string; duration: string; src: string }
+export type DiscoverTrack = { id: string; title: string; artist: string; duration: string; src: string }
 
-export function DiscoverPanel() {
+type Props = {
+  activeTrackId: string | null
+  isPlaying: boolean
+  onSelectTrack: (track: DiscoverTrack) => void
+}
+
+export function DiscoverPanel({ activeTrackId, isPlaying, onSelectTrack }: Props) {
   const [enabled, setEnabled] = useState<boolean | null>(null) // null = still checking
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState<DiscoverTrack[]>([])
   const [loading, setLoading] = useState(false)
   const [notFound, setNotFound] = useState(false)
-  const [playingId, setPlayingId] = useState<string | null>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
 
   // Probe once on mount to see if Discover is turned on; hide entirely if not.
-  // (No query yet, so this just checks the on/off state — it won't hit HELIX.)
   useEffect(() => {
     fetch('/api/discover')
       .then((res) => {
@@ -42,28 +45,14 @@ export function DiscoverPanel() {
     setLoading(false)
   }
 
-  function togglePlay(track: DiscoverTrack) {
-    const audio = audioRef.current
-    if (!audio) return
-    if (playingId === track.id) {
-      audio.pause()
-      setPlayingId(null)
-    } else {
-      audio.src = track.src
-      audio.play()
-      setPlayingId(track.id)
-    }
-  }
-
   if (enabled === false) return null // Discover is off — render nothing
 
   return (
     <section className="playlist-pane discover-pane">
-      <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
       <div className="playlist-heading">
         <div>
-          <p className="eyebrow">ONLINE HELIX MUSIC</p>
-          <h2>DISCOVER HERE</h2>
+          <p className="eyebrow">FREE INTERNET MUSIC</p>
+          <h2>Discover</h2>
         </div>
         <Radio size={20} />
       </div>
@@ -80,18 +69,27 @@ export function DiscoverPanel() {
           {loading && <div className="admin-empty">Searching…</div>}
           {!loading && notFound && <div className="admin-empty">No match found. Try a different title.</div>}
           {!loading &&
-            tracks.map((t) => (
-              <div className="track" key={t.id} onClick={() => togglePlay(t)} role="button" tabIndex={0}>
-                <button aria-label="play">
-                  {playingId === t.id ? <Pause size={16} /> : <Play size={16} />}
-                </button>
-                <div className="track-info">
-                  <strong>{t.title}</strong>
-                  <small>{t.artist}</small>
+            tracks.map((t) => {
+              const active = t.id === activeTrackId
+              return (
+                <div
+                  className={`track ${active ? 'active' : ''}`}
+                  key={t.id}
+                  onClick={() => onSelectTrack(t)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <button aria-label="play">
+                    {active && isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                  <div className="track-info">
+                    <strong>{t.title}</strong>
+                    <small>{t.artist}</small>
+                  </div>
+                  <span className="duration">{t.duration}</span>
                 </div>
-                <span className="duration">{t.duration}</span>
-              </div>
-            ))}
+              )
+            })}
         </div>
       </div>
     </section>
