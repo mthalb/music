@@ -254,6 +254,18 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
 
   const track = externalTrack ?? tracks[current]
 
+  // Streamed (Discover) audio often reports an unreliable/incomplete native
+  // duration since it has no Content-Length. Trust the API's own duration
+  // metadata for external tracks instead of the <audio> element's guess.
+  function parseDurationToSeconds(value: string | undefined): number {
+    if (!value) return 0
+    const [m, s] = value.split(':').map(Number)
+    if (Number.isNaN(m) || Number.isNaN(s)) return 0
+    return m * 60 + s
+  }
+  const metaDurationSeconds = parseDurationToSeconds(track?.duration)
+  const effectiveDuration = externalTrack && metaDurationSeconds > 0 ? metaDurationSeconds : duration
+
   // Keep the <audio> element's play/pause state in sync with React state.
   useEffect(() => {
     const audio = audioRef.current
@@ -322,8 +334,8 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
 
   function handleSeek(event: React.ChangeEvent<HTMLInputElement>) {
     const value = Number(event.target.value)
-    if (audioRef.current && duration > 0) {
-      audioRef.current.currentTime = (value / 100) * duration
+    if (audioRef.current && effectiveDuration > 0) {
+      audioRef.current.currentTime = (value / 100) * effectiveDuration
       setCurrentTime(audioRef.current.currentTime)
     }
   }
@@ -337,7 +349,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
     [query, tracks]
   )
 
-  const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+  const progressPct = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0
 
   return (
     <main className="music-app">
@@ -386,7 +398,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
               onChange={handleSeek}
               disabled={!track}
             />
-            <span>{duration > 0 ? formatTime(duration) : track ? track.duration : '0:00'}</span>
+            <span>{effectiveDuration > 0 ? formatTime(effectiveDuration) : track ? track.duration : '0:00'}</span>
           </div>
           <div className="controls">
             <button aria-label="Previous track" onClick={() => goTo(current - 1)} disabled={!track}><SkipBack /></button>
