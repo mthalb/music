@@ -212,6 +212,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
   const [volume, setVolume] = useState(72)
   const [query, setQuery] = useState('')
   const [favorites, setFavorites] = useState<number[]>([])
+  const [externalTrack, setExternalTrack] = useState<ApiTrack | null>(null)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const refetchingRef = useRef(false)
@@ -251,7 +252,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
     return () => clearInterval(interval)
   }, [onRevoked])
 
-  const track = tracks[current]
+  const track = externalTrack ?? tracks[current]
 
   // Keep the <audio> element's play/pause state in sync with React state.
   useEffect(() => {
@@ -272,6 +273,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
   const goTo = useCallback(
     (index: number) => {
       if (tracks.length === 0) return
+      setExternalTrack(null)
       const next = (index + tracks.length) % tracks.length
       setCurrent(next)
       setCurrentTime(0)
@@ -281,10 +283,30 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
   )
 
   const handleEnded = useCallback(() => {
+    if (externalTrack) {
+      setExternalTrack(null)
+      setPlaying(false)
+      return
+    }
     if (tracks.length === 0) return
     goTo(current + 1)
     setPlaying(true)
-  }, [current, goTo, tracks.length])
+  }, [current, externalTrack, goTo, tracks.length])
+
+  // Called when a Discover result is selected — plays through the same player/controls.
+  const playExternal = useCallback(
+    (t: ApiTrack) => {
+      if (externalTrack?.id === t.id) {
+        setPlaying((p) => !p)
+        return
+      }
+      setExternalTrack(t)
+      setCurrentTime(0)
+      setDuration(0)
+      setPlaying(true)
+    },
+    [externalTrack]
+  )
 
   // A signed URL may have expired between load and playback — refetch once and retry.
   const handleAudioError = useCallback(async () => {
@@ -338,7 +360,7 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
 
       <header className="topbar">
         <div className="brand-mark"><span>O</span><span>R</span></div>
-        <div className="brand-copy"><strong>HELIX</strong><small>listening room</small></div>
+        <div className="brand-copy"><strong>ORBITAL</strong><small>personal listening room</small></div>
         {level === 'limited' && (
           <span className="limited-banner"><ShieldAlert size={12} /> Limited access</span>
         )}
@@ -375,17 +397,21 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
         </section>
 
         <div className="playlist-column">
-          <DiscoverPanel />
+          <DiscoverPanel
+            activeTrackId={externalTrack?.id ?? null}
+            isPlaying={playing}
+            onSelectTrack={playExternal}
+          />
 
           <aside className="playlist-pane">
-            <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>HELIX Rotation</h2></div><ListMusic size={20} /></div>
+            <div className="playlist-heading"><div><p className="eyebrow">THE COLLECTION</p><h2>Evening rotation</h2></div><ListMusic size={20} /></div>
             <label className="search-wrap"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your library" aria-label="Search your library" /></label>
             <div className="playlist-scroll" aria-label="Playlist tracks">
               <div className="track-list">
                 {filtered.map((item) => {
                   const index = tracks.indexOf(item)
                   return (
-                    <div className={`track ${index === current ? 'active' : ''}`} key={item.id} onClick={() => { goTo(index); setPlaying(true) }} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') { goTo(index); setPlaying(true) } }}>
+                    <div className={`track ${index === current && !externalTrack ? 'active' : ''}`} key={item.id} onClick={() => { setExternalTrack(null); goTo(index); setPlaying(true) }} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter') { setExternalTrack(null); goTo(index); setPlaying(true) } }}>
                       <span className="track-num">{String(index + 1).padStart(2, '0')}</span>
                       <span className="eq" aria-hidden="true"><i /><i /><i /></span>
                       <div className="track-info"><strong>{item.title}</strong><small>{item.artist}</small></div>
@@ -403,4 +429,3 @@ function Player({ level, onRevoked }: { level: AccessLevel; onRevoked: () => voi
     </main>
   )
 }
-        
