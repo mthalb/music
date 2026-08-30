@@ -5,8 +5,8 @@ import { THEME_INIT_SCRIPT } from '@/lib/themes'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Orbital — Personal Listening Room',
-  description: 'A focused music player for your evening rotation.',
+  title: 'HELIX MUSIC',
+  description: 'A focused music player by HELIX TANVIR.',
   generator: 'v0.app',
   icons: {
     icon: [
